@@ -14,6 +14,8 @@ import {
   AudioLines,
   ChevronDown,
   ListMusic,
+  Shuffle,
+  Repeat2,
 } from "lucide-react";
 
 import { asset } from "../lib/assets";
@@ -21,6 +23,8 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import LivingOrb from "../components/LivingOrb";
 import "./SoundtrackPage.css";
 import "./SoundtrackOrb.css";
+import "./SoundtrackVibes.css";
+import "./SoundtrackNova.css";
 
 type Track = {
   id: string;
@@ -93,7 +97,9 @@ export default function SoundtrackPage() {
   const [mobileExpanded, setMobileExpanded] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches
   );
-  const [mobileView, setMobileView] = useState<"library" | "player">("library");
+  const [mobileView, setMobileView] = useState<"library" | "player">("player");
+  const [shuffle, setShuffle] = useState(false);
+  const [repeatOne, setRepeatOne] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const activeTrack = TRACKS[activeIndex];
@@ -258,6 +264,12 @@ export default function SoundtrackPage() {
 
   function nextTrack() {
     if (TRACKS.length < 2) return;
+    if (shuffle) {
+      // Never randomly select the track that is already playing.
+      const offset = 1 + Math.floor(Math.random() * (TRACKS.length - 1));
+      playTrack((activeIndex + offset) % TRACKS.length);
+      return;
+    }
     playTrack((activeIndex + 1) % TRACKS.length);
   }
 
@@ -272,8 +284,14 @@ export default function SoundtrackPage() {
   }
 
   function handleEnded() {
-    if (activeIndex < TRACKS.length - 1) {
-      playTrack(activeIndex + 1);
+    if (repeatOne) {
+      const audio = audioRef.current;
+      if (audio) audio.currentTime = 0;
+      void startPlayback();
+      return;
+    }
+    if (shuffle || activeIndex < TRACKS.length - 1) {
+      nextTrack();
     } else {
       setPlaying(false);
     }
@@ -587,7 +605,7 @@ export default function SoundtrackPage() {
           One audio element remains mounted outside this portal. */}
       {mobileExpanded && hasTracks && activeTrack && createPortal(
         <div
-          className="av-mobile-player"
+          className={`av-mobile-player av-nova-ui ${playing ? "is-playing" : ""}`}
           ref={modalRef}
           role="dialog"
           aria-modal="true"
@@ -597,7 +615,7 @@ export default function SoundtrackPage() {
           <header className="av-mobile-header">
             <div className="av-mobile-brand">
               <span>ALGOVERSE</span>
-              <strong>VIBES.</strong>
+              <strong>VIBES<span className="av-brand-period">.</span></strong>
             </div>
             <button
               type="button"
@@ -673,6 +691,8 @@ export default function SoundtrackPage() {
           ) : (
             <section className="av-mobile-body" aria-label="Now playing">
               <div className="av-world-stage">
+                <span className="av-nova-orbit av-nova-orbit--back" aria-hidden="true" />
+                <span className="av-nova-orbit av-nova-orbit--front" aria-hidden="true" />
                 <LivingOrb
                   analyserRef={analyserRef}
                   playing={playing}
@@ -698,18 +718,45 @@ export default function SoundtrackPage() {
                   disabled={duration <= 0}
                   aria-label="Seek within track"
                   style={{
-                    background: `linear-gradient(to right, #e9d7f0 ${duration > 0 ? (current / duration) * 100 : 0}%, rgba(255,255,255,.18) 0)`,
+                    background: `linear-gradient(to right, #d8bbff ${duration > 0 ? (current / duration) * 100 : 0}%, rgba(221,209,255,.24) 0)`,
                   }}
                 />
                 <div><span>{formatTime(current)}</span><span>{formatTime(duration)}</span></div>
               </div>
-              <nav className="av-track-navigation" aria-label="Track controls">
-                <button type="button" onClick={previousTrack} aria-label="Previous track or restart">
-                  <SkipBack size={25} fill="currentColor" />
+              <nav className="av-track-navigation" aria-label="Music playback controls">
+                <button
+                  type="button"
+                  className={`av-nova-secondary ${shuffle ? "is-active" : ""}`}
+                  onClick={() => setShuffle((value) => !value)}
+                  aria-label="Shuffle tracks"
+                  aria-pressed={shuffle}
+                  title="Shuffle"
+                >
+                  <Shuffle size={18} />
                 </button>
-                <span className="av-track-count">{activeIndex + 1} <span>/</span> {TRACKS.length}</span>
-                <button type="button" onClick={nextTrack} aria-label="Next track">
-                  <SkipForward size={25} fill="currentColor" />
+                <button type="button" className="av-nova-skip" onClick={previousTrack} aria-label="Previous track or restart">
+                  <SkipBack size={23} fill="currentColor" />
+                </button>
+                <button
+                  type="button"
+                  className="av-nova-play"
+                  onClick={() => void togglePlay()}
+                  aria-label={playing ? "Pause" : "Play"}
+                >
+                  {playing ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}
+                </button>
+                <button type="button" className="av-nova-skip" onClick={nextTrack} aria-label="Next track">
+                  <SkipForward size={23} fill="currentColor" />
+                </button>
+                <button
+                  type="button"
+                  className={`av-nova-secondary ${repeatOne ? "is-active" : ""}`}
+                  onClick={() => setRepeatOne((value) => !value)}
+                  aria-label="Repeat current track"
+                  aria-pressed={repeatOne}
+                  title="Repeat current track"
+                >
+                  <Repeat2 size={18} />
                 </button>
               </nav>
               <div className="av-mobile-footer">

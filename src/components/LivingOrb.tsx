@@ -18,73 +18,78 @@ const vertexShader = /* glsl */ `
 
   varying vec3 vNormal;
   varying vec3 vView;
-  varying vec3 vObjectPosition;
+  varying vec3 vPosition;
 
   void main() {
     vec3 p = position;
-    float ripple =
-      sin(p.y * 11.0 + p.x * 4.0 + uTime * 0.65) *
-      cos(p.z * 9.0 - p.y * 3.0 - uTime * 0.55) +
-      0.35 * sin(p.x * 16.0 + p.y * 8.0 + uTime);
 
-    // Low frequencies pulse the sphere as a whole; mids deform its surface.
-    float displacement = ripple * (0.006 + uMid * 0.085)
-                       + uBass * 0.024;
-    vec3 displaced = p + normal * displacement;
+    // Broader organic folds and quicker detail ripples; both follow the music.
+    float undulation = sin(p.y * 5.8 + p.x * 3.1 + uTime * 1.25)
+                      * cos(p.z * 4.0 - p.x * 2.1 - uTime * 0.93);
+    float crest = sin(p.y * 10.0 + p.z * 5.6 + uTime * 1.7)
+                * sin(p.x * 7.9 - p.y * 2.5 - uTime * 1.05);
+    float deformation = undulation * (0.025 + 0.11 * uMid)
+                      + crest * (0.010 + 0.048 * uMid)
+                      + uBass * 0.040;
 
-    vec4 viewPosition = modelViewMatrix * vec4(displaced, 1.0);
+    vec3 deformed = p + normal * deformation;
+    vec4 eyePosition = modelViewMatrix * vec4(deformed, 1.0);
     vNormal = normalize(normalMatrix * normal);
-    vView = normalize(-viewPosition.xyz);
-    vObjectPosition = displaced;
-
-    gl_Position = projectionMatrix * viewPosition;
+    vView = normalize(-eyePosition.xyz);
+    vPosition = deformed;
+    gl_Position = projectionMatrix * eyePosition;
   }
 `;
 
 const fragmentShader = /* glsl */ `
   uniform float uTime;
+  uniform float uBass;
+  uniform float uMid;
   uniform float uHigh;
   uniform float uMood;
 
   varying vec3 vNormal;
   varying vec3 vView;
-  varying vec3 vObjectPosition;
+  varying vec3 vPosition;
 
   void main() {
-    vec3 normal = normalize(vNormal);
+    vec3 n = normalize(vNormal);
     vec3 view = normalize(vView);
-    float fresnel = pow(1.0 - max(dot(normal, view), 0.0), 3.2);
-    float light = max(dot(normal, normalize(vec3(-0.5, 0.85, 0.9))), 0.0);
+    float ndv = max(dot(n, view), 0.0);
+    float fresnel = pow(1.0 - ndv, 2.7);
+    float diffuse = max(dot(n, normalize(vec3(-0.48, 0.75, 1.18))), 0.0);
 
-    vec3 indigo = vec3(0.065, 0.090, 0.205);
-    vec3 violet = vec3(0.48, 0.37, 0.73);
-    vec3 cyan = vec3(0.45, 0.80, 0.86);
-    vec3 amber = vec3(0.98, 0.67, 0.48);
-    vec3 pearl = vec3(0.89, 0.84, 0.90);
+    vec3 midnight = vec3(0.018, 0.020, 0.082);
+    vec3 deepViolet = vec3(0.115, 0.075, 0.255);
+    vec3 electricLilac = vec3(0.67, 0.39, 1.0);
+    vec3 iceBlue = vec3(0.30, 0.70, 1.0);
+    vec3 palePink = vec3(0.98, 0.71, 0.98);
 
-    vec3 accent = mix(violet, amber, smoothstep(0.0, 1.0, uMood));
-    accent = mix(accent, cyan, smoothstep(1.0, 2.0, uMood));
+    // Liquid filaments: thin luminous threads follow the folding surface.
+    float fold = vPosition.y * 10.8
+               + sin(vPosition.x * 4.3 + uTime * 0.74) * 2.1
+               + vPosition.z * 4.5 + uTime * 0.63;
+    float ribbon = sin(fold);
+    float filament = pow(max(0.0, 1.0 - abs(ribbon)), 12.0);
+    float veil = pow(max(0.0, 0.5 + 0.5 * sin(fold * 0.52 + 1.6)), 2.4);
+    float ribbonTwo = pow(max(0.0, 1.0 - abs(sin(
+      vPosition.y * 7.7 - vPosition.x * 3.8
+      + sin(vPosition.z * 5.0 + uTime) * 1.1 - uTime * 0.54
+    ))), 16.0);
 
-    float flow = sin(
-      vObjectPosition.y * 5.6 +
-      vObjectPosition.x * 6.2 +
-      uTime * 0.21
-    );
-    float tide = smoothstep(-0.65, 0.9, flow);
-    float vertical = smoothstep(-0.75, 0.9, vObjectPosition.y);
+    float blueSide = smoothstep(-0.5, 0.95,
+      sin(vPosition.x * 3.4 - vPosition.z * 3.6 + uTime * 0.25 + uMood));
 
-    vec3 color = mix(indigo, accent, 0.18 + tide * 0.58);
-    color = mix(color, pearl, vertical * 0.09);
-    color *= 0.38 + light * 0.77;
-    color += mix(violet, cyan, 0.6) * fresnel * 0.60;
+    vec3 color = mix(midnight, deepViolet, 0.55 + diffuse * 0.22);
+    color += electricLilac * veil * (0.18 + diffuse * 0.22);
+    color += mix(electricLilac, iceBlue, blueSide)
+          * filament * (0.43 + uMid * 0.8 + uHigh * 0.35);
+    color += palePink * ribbonTwo * (0.24 + uHigh * 0.38);
+    color += iceBlue * fresnel * (0.56 + uBass * 0.32);
+    color += electricLilac * pow(fresnel, 2.0) * 0.46;
 
-    // A few delicate highlights follow the actual upper audio frequencies.
-    float micro = pow(max(0.0, sin(
-      vObjectPosition.y * 24.0 +
-      vObjectPosition.x * 17.0 + uTime * 0.55
-    )), 12.0);
-    color += pearl * micro * (0.012 + uHigh * 0.15);
-
+    // A restrained surface light, not a harsh glowing white texture.
+    color *= 0.7 + diffuse * 0.46;
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -143,17 +148,20 @@ function AudioSphere({
         return total / ((end - start) * 255);
       };
 
-      target.bass = Math.min(1, bandEnergy(35, 180) * 2.0);
-      target.mid = Math.min(1, bandEnergy(180, 2500) * 1.9);
+      target.bass = Math.min(1, bandEnergy(35, 180) * 2.35);
+      target.mid = Math.min(1, bandEnergy(180, 2500) * 2.05);
       target.high = Math.min(1, bandEnergy(2500, 9000) * 2.0);
     }
 
     // Smooth amplitude to avoid jitter without losing beat-level response.
-    const ease = 1 - Math.exp(-9 * delta);
     const levels = levelsRef.current;
-    levels.bass += (target.bass - levels.bass) * ease;
-    levels.mid += (target.mid - levels.mid) * ease;
-    levels.high += (target.high - levels.high) * ease;
+    // Fast beat attack, smooth release: a stronger musical pulse without shake.
+    const bassEase = 1 - Math.exp(-(target.bass > levels.bass ? 19 : 6) * delta);
+    const midEase = 1 - Math.exp(-11 * delta);
+    const highEase = 1 - Math.exp(-14 * delta);
+    levels.bass += (target.bass - levels.bass) * bassEase;
+    levels.mid += (target.mid - levels.mid) * midEase;
+    levels.high += (target.high - levels.high) * highEase;
 
     material.uniforms.uBass.value = levels.bass;
     material.uniforms.uMid.value = levels.mid;
@@ -161,13 +169,21 @@ function AudioSphere({
     material.uniforms.uMood.value +=
       (mood - material.uniforms.uMood.value) * (1 - Math.exp(-1.6 * delta));
 
-    const wantedSpeed = playing && !reduceMotion ? 0.19 : 0;
+    // More pronounced world rotation, with acceleration from the bass.
+    const wantedSpeed = playing && !reduceMotion
+      ? 0.72 + levels.bass * 0.38
+      : 0;
     speedRef.current += (wantedSpeed - speedRef.current) * (1 - Math.exp(-6 * delta));
     mesh.rotation.y += speedRef.current * delta;
-    mesh.rotation.z += speedRef.current * delta * 0.12;
+    mesh.rotation.z += speedRef.current * delta * 0.21;
+    // A quiet orbital tilt gives the object depth without jitter.
+    if (playing && !reduceMotion) {
+      mesh.rotation.x += (0.22 * Math.sin(material.uniforms.uTime.value * 0.78) - mesh.rotation.x)
+        * (1 - Math.exp(-1.1 * delta));
+    }
     material.uniforms.uTime.value += speedRef.current > 0.001 ? delta : 0;
 
-    mesh.scale.setScalar(1 + levels.bass * 0.075);
+    mesh.scale.setScalar(1 + levels.bass * 0.14 + levels.mid * 0.022);
   });
 
   return (
@@ -188,10 +204,11 @@ export default function LivingOrb({
   return (
     <button
       type="button"
-      className="av-living-orb"
+      className={`av-living-orb ${playing && !reduceMotion ? "is-playing" : ""}`}
       onClick={onToggle}
       aria-label={playing ? "Pause music" : "Play music"}
     >
+      <span className="av-orb-orbit" aria-hidden="true" />
       <span className="av-orb-canvas" aria-hidden="true">
         <Canvas
           camera={{ position: [0, 0, 3.45], fov: 40 }}
