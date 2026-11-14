@@ -9,6 +9,17 @@ dist/
 .idea/
 coverage/
 # Large masters/episodes should live on the streaming CDN, not in Git history.
+
+# Episode media — allow two testing videos
 public/media/episodes/*
+
 !public/media/episodes/.gitkeep
 !public/media/episodes/README.md
+
+# Temporary testing videos
+!public/media/episodes/pilot-the-resume.mp4
+!public/media/episodes/s01e01-reconnected.mp4
+
+
+# Episode videos are hosted externally
+public/media/episodes/*.mp4
