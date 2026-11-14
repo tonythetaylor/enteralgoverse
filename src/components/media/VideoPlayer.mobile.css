@@ -1,0 +1,167 @@
+/* ALGOVERSE / mobile cinema for Drive-hosted episodes.
+   Import last from VideoPlayer.tsx so these rules override earlier
+   .drive-player / .drive-cinema-* declarations. */
+
+.drive-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+}
+
+.drive-player > iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* The custom poster is mobile only. Desktop keeps Google's iframe. */
+.drive-player > .drive-mobile-start {
+  display: none;
+}
+
+.drive-player > .drive-cinema-exit {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .drive-player {
+    border-radius: 12px;
+    isolation: isolate;
+  }
+
+  .drive-player:not(.is-started) > iframe {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .drive-player > .drive-mobile-start {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #fff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .drive-mobile-play-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border: 1px solid rgba(255,255,255,.45);
+    border-radius: 50%;
+    background: rgba(255,255,255,.12);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 34px rgba(255,154,62,.22);
+  }
+
+  .drive-mobile-play-icon > svg {
+    margin-left: 3px;
+  }
+
+  .drive-mobile-play-label {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .18em;
+  }
+}
+
+/* These remain active when a phone rotates to landscape and its
+   width exceeds the mobile breakpoint. */
+.drive-player:fullscreen,
+.drive-player.drive-player--fallback {
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 !important;
+  background: #000;
+  overflow: hidden;
+}
+
+.drive-player.drive-player--fallback {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000;
+}
+
+.drive-player:fullscreen > iframe,
+.drive-player.drive-player--fallback > iframe {
+  display: block;
+  flex: 0 0 auto;
+  width: min(100vw, 177.7778dvh) !important;
+  height: min(56.25vw, 100dvh) !important;
+  max-width: none !important;
+  border: 0;
+}
+
+.drive-player:fullscreen > .drive-cinema-exit,
+.drive-player.drive-player--fallback > .drive-cinema-exit {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 30;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 999px;
+  background: rgba(12,13,24,.85);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.drive-player .drive-cinema-note {
+  position: absolute;
+  left: 50%;
+  bottom: calc(15px + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(20,16,37,.82);
+  color: #eee4ff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+}
+
+.drive-player > .drive-mobile-start:focus-visible,
+.drive-player > .drive-cinema-exit:focus-visible {
+  outline: 2px solid #c69bff;
+  outline-offset: 3px;
+}

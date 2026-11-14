@@ -1068,6 +1068,9 @@ button:disabled {
 }
 
 
+
+/* ALGOVERSE — Mobile Cinema Player */
+
 .drive-player {
   position: relative;
   width: 100%;
@@ -1082,6 +1085,31 @@ button:disabled {
   height: 100%;
   border: 0;
 }
+
+/* Mobile controls only */
+.drive-cinema-button,
+.drive-cinema-exit {
+  display: none;
+}
+
+/* Fullscreen mode */
+.drive-player:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  aspect-ratio: auto;
+  background: #000;
+}
+
+.drive-player:fullscreen iframe {
+  width: 100%;
+  height: 100%;
+}
+
+/* When fullscreen is actually active, keep Exit accessible */
+.drive-player:fullscreen .drive-cinema-exit {
+  display: flex;
+}
+
 
 .video-empty {
   position: relative;
@@ -1768,5 +1796,93 @@ button:disabled {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .drive-cinema-button,
+  .drive-cinema-exit {
+    position: absolute;
+    z-index: 20;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-height: 42px;
+    padding: 10px 14px;
+
+    border: 1px solid rgba(255,255,255,.26);
+    border-radius: 999px;
+
+    background: rgba(15,13,29,.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .drive-cinema-button {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .drive-cinema-exit {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+  }
+
+  /* Fullscreen fallback for browsers such as iPhone Safari */
+  .drive-player--fallback {
+    position: fixed;
+    inset: 0;
+
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+
+    aspect-ratio: auto;
+    z-index: 9999;
+    background: #000;
+  }
+
+  .drive-player--fallback iframe {
+    width: 100%;
+    height: 100%;
+  }
+
+  .drive-cinema-note {
+    position: absolute;
+    left: 50%;
+    bottom: calc(
+      24px + env(safe-area-inset-bottom, 0px)
+    );
+
+    transform: translateX(-50%);
+    z-index: 15;
+
+    width: max-content;
+    max-width: calc(100% - 32px);
+
+    padding: 10px 15px;
+    border-radius: 12px;
+
+    background: rgba(20,16,37,.9);
+    color: #e6ddf3;
+
+    font-size: 12px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .drive-cinema-button:focus-visible,
+  .drive-cinema-exit:focus-visible {
+    outline: 2px solid #c69bff;
+    outline-offset: 3px;
   }
 }

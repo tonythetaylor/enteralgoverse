@@ -339,7 +339,7 @@ function AudioSphere({
     // Maximum growth is 4.5%, not 16%+.
     const targetScale =
       playing && !reduceMotion
-        ? 1 + Math.min(0.025, levels.bass * 0.012 + beatRef.current * 0.014)
+        ? 1 + Math.min(MAX_PULSE_SCALE, levels.bass * 0.04 + levels.mid * 0.005)
         : 1;
 
     const smoothScale = THREE.MathUtils.damp(
