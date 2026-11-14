@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vscode/
+.idea/
+coverage/
+# Large masters/episodes should live on the streaming CDN, not in Git history.
+public/media/episodes/*
+!public/media/episodes/.gitkeep
+!public/media/episodes/README.md
