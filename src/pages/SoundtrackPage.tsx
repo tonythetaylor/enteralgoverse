@@ -1,5 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Disc3,
   Headphones,
@@ -11,11 +12,15 @@ import {
   Volume2,
   VolumeX,
   AudioLines,
+  ChevronDown,
+  ListMusic,
 } from "lucide-react";
 
 import { asset } from "../lib/assets";
 import { usePageTitle } from "../hooks/usePageTitle";
+import LivingOrb from "../components/LivingOrb";
 import "./SoundtrackPage.css";
+import "./SoundtrackOrb.css";
 
 type Track = {
   id: string;
@@ -70,8 +75,12 @@ export default function SoundtrackPage() {
     "The original music and sound behind The Algorithm."
   );
 
+  // One HTMLAudioElement drives both the desktop and mobile interfaces.
   const audioRef = useRef<HTMLAudioElement>(null);
-  const autoplayOnChange = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -81,84 +90,180 @@ export default function SoundtrackPage() {
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState("");
 
+const [mobileExpanded, setMobileExpanded] = useState(() => {
+  if (typeof window === "undefined") return false;
+
+  return window.matchMedia("(max-width: 600px)").matches;
+});
+
+  const [reduceMotion, setReduceMotion] = useState(false);
+
   const activeTrack = TRACKS[activeIndex];
   const hasTracks = TRACKS.length > 0;
 
+  // Set the initial audio source once. Subsequent changes happen directly
+  // inside the user's click handler to preserve mobile playback gestures.
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !activeTrack) return;
-
-    setCurrent(0);
-    setDuration(0);
-    setError("");
-
-    audio.load();
-
-    if (autoplayOnChange.current) {
-      autoplayOnChange.current = false;
-
-      void audio.play().catch(() => {
-        setError("Unable to play this track.");
-      });
+    if (audio && TRACKS[0]) {
+      audio.src = TRACKS[0].src;
+      audio.load();
     }
-  }, [activeIndex, activeTrack?.src]);
 
-  async function togglePlay() {
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+        analyserRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduceMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    modalRef.current?.querySelector<HTMLButtonElement>(".av-modal-close")?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileExpanded(false);
+      }
+      if (event.key !== "Tab" || !modalRef.current) return;
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), a[href]'
+        )
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [mobileExpanded]);
+
+  function openMobilePlayer() {
+    if (!window.matchMedia("(max-width: 600px)").matches) return;
+    if (!mobileExpanded) {
+      previouslyFocusedRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setMobileExpanded(true);
+    }
+  }
+
+  // Connect the existing audio element only once. This is deliberately called
+  // during a click, rather than an effect, for mobile AudioContext policies.
+  function prepareAudioAnalysis(): AudioContext | null {
+    const audio = audioRef.current;
+    if (!audio) return null;
+
+    if (!audioContextRef.current) {
+      const context = new AudioContext();
+      const source = context.createMediaElementSource(audio);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.82;
+      source.connect(analyser);
+      analyser.connect(context.destination);
+      audioContextRef.current = context;
+      analyserRef.current = analyser;
+    }
+    return audioContextRef.current;
+  }
+
+  async function startPlayback() {
     const audio = audioRef.current;
     if (!audio) return;
 
     try {
       setError("");
-
-      if (audio.paused) {
-        await audio.play();
-      } else {
-        audio.pause();
-      }
+      const context = prepareAudioAnalysis();
+      // Invoke both during the same user gesture; do not await before play().
+      const resume = context?.resume();
+      const play = audio.play();
+      await Promise.all([resume, play]);
     } catch {
-      setError("Unable to play this audio file.");
+      setError("Unable to play this track. Check the MP3 path and browser permissions.");
     }
   }
 
-  function selectTrack(index: number) {
-    if (!TRACKS[index]) return;
+  async function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!audio.paused) {
+      audio.pause();
+    } else {
+      await startPlayback();
+    }
+  }
+
+  // Changes audio.src synchronously so a tap on iOS can start the new track.
+  function playTrack(index: number) {
+    const audio = audioRef.current;
+    const track = TRACKS[index];
+    if (!audio || !track) return;
 
     if (index === activeIndex) {
       void togglePlay();
       return;
     }
 
-    autoplayOnChange.current = true;
+    audio.pause();
+    audio.src = track.src;
+    audio.load();
     setActiveIndex(index);
+    setCurrent(0);
+    setDuration(0);
+    void startPlayback();
+  }
+
+  function selectTrack(index: number) {
+    if (!TRACKS[index]) return;
+    openMobilePlayer();
+    playTrack(index);
   }
 
   function nextTrack() {
     if (TRACKS.length < 2) return;
-
-    autoplayOnChange.current = true;
-    setActiveIndex((index) => (index + 1) % TRACKS.length);
+    playTrack((activeIndex + 1) % TRACKS.length);
   }
 
   function previousTrack() {
     const audio = audioRef.current;
-
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
       return;
     }
-
     if (TRACKS.length < 2) return;
-
-    autoplayOnChange.current = true;
-    setActiveIndex(
-      (index) => (index - 1 + TRACKS.length) % TRACKS.length
-    );
+    playTrack((activeIndex - 1 + TRACKS.length) % TRACKS.length);
   }
 
   function handleEnded() {
     if (activeIndex < TRACKS.length - 1) {
-      autoplayOnChange.current = true;
-      setActiveIndex((index) => index + 1);
+      playTrack(activeIndex + 1);
     } else {
       setPlaying(false);
     }
@@ -167,28 +272,23 @@ export default function SoundtrackPage() {
   function seek(value: number) {
     const audio = audioRef.current;
     if (!audio || duration <= 0) return;
-
     audio.currentTime = value;
     setCurrent(value);
   }
 
   function changeVolume(value: number) {
     const audio = audioRef.current;
-
     setVolume(value);
-
     if (audio) {
       audio.volume = value;
       audio.muted = value === 0;
     }
-
     setMuted(value === 0);
   }
 
   function toggleMute() {
     const audio = audioRef.current;
     if (!audio) return;
-
     audio.muted = !audio.muted;
     setMuted(audio.muted);
   }
@@ -419,7 +519,6 @@ export default function SoundtrackPage() {
       {/* NATIVE AUDIO ELEMENT */}
       <audio
         ref={audioRef}
-        src={activeTrack?.src}
         preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -430,12 +529,139 @@ export default function SoundtrackPage() {
           setDuration(event.currentTarget.duration)
         }
         onEnded={handleEnded}
+        onVolumeChange={(event) => {
+          setVolume(event.currentTarget.volume);
+          setMuted(event.currentTarget.muted);
+        }}
         onError={() => {
           if (hasTracks) {
             setError("Track unavailable. Check the audio file.");
           }
         }}
       />
+
+      {/* Mobile mini-player replaces the desktop toolbar below 600px. */}
+      {hasTracks && activeTrack && createPortal(
+        <div className="av-mini-player" aria-label="Mini music player">
+          <button
+            className="av-mini-open"
+            type="button"
+            onClick={openMobilePlayer}
+            aria-label={`Open full player for ${activeTrack.title}`}
+          >
+            <span className="av-mini-art">
+              <img src={asset(activeTrack.artwork || COVER)} alt="" />
+            </span>
+            <span className="av-mini-copy">
+              <strong>{activeTrack.title}</strong>
+              <small>{activeTrack.artist} · ALGOVERSE VIBES</small>
+            </span>
+          </button>
+          <button
+            className="av-mini-toggle"
+            type="button"
+            onClick={() => void togglePlay()}
+            aria-label={playing ? "Pause" : "Play"}
+          >
+            {playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+          </button>
+          <div
+            className="av-mini-progress"
+            style={{ width: `${duration > 0 ? (current / duration) * 100 : 0}%` }}
+          />
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile-only immersive player. The audio element stays mounted above. */}
+      {mobileExpanded && hasTracks && activeTrack && createPortal(
+        <div
+          className="av-mobile-player"
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="ALGOVERSE Vibes music player"
+        >
+          <div className="av-mobile-backdrop" aria-hidden="true" />
+          <header className="av-mobile-header">
+            <div className="av-mobile-brand">
+              <span>ALGOVERSE</span>
+              <strong>VIBES.</strong>
+            </div>
+            <button
+              type="button"
+              className="av-modal-close"
+              onClick={() => setMobileExpanded(false)}
+              aria-label="Minimize the player"
+            >
+              <ChevronDown size={24} />
+            </button>
+          </header>
+
+          <div className="av-mobile-body">
+            <div className="av-world-stage">
+              <LivingOrb
+                analyserRef={analyserRef}
+                playing={playing}
+                mood={activeIndex}
+                reduceMotion={reduceMotion}
+                onToggle={() => void togglePlay()}
+              />
+            </div>
+
+            <div className="av-now-playing">
+              <span>NOW IN ROTATION · {String(activeIndex + 1).padStart(2, "0")}</span>
+              <h2>{activeTrack.title}</h2>
+              <p>{activeTrack.artist}</p>
+              {activeTrack.episode && <small>{activeTrack.episode}</small>}
+            </div>
+
+            <div className="av-progress">
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                step="0.1"
+                value={Math.min(current, duration || 0)}
+                onChange={(event) => seek(Number(event.target.value))}
+                disabled={duration <= 0}
+                aria-label="Seek within track"
+                style={{
+                  background: `linear-gradient(to right, #e9d7f0 ${duration > 0 ? (current / duration) * 100 : 0}%, rgba(255,255,255,.18) 0)`,
+                }}
+              />
+              <div>
+                <span>{formatTime(current)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+
+            <nav className="av-track-navigation" aria-label="Track controls">
+              <button type="button" onClick={previousTrack} aria-label="Previous track or restart">
+                <SkipBack size={25} fill="currentColor" />
+              </button>
+              <span className="av-track-count">
+                {activeIndex + 1} <span>/</span> {TRACKS.length}
+              </span>
+              <button type="button" onClick={nextTrack} aria-label="Next track">
+                <SkipForward size={25} fill="currentColor" />
+              </button>
+            </nav>
+            <div className="av-mobile-footer">
+              <span><AudioLines size={15} /> THE ALGORITHM · ORIGINAL SOUNDTRACK</span>
+              <button
+                type="button"
+                onClick={() => setMobileExpanded(false)}
+                aria-label="Return to soundtrack track list"
+              >
+                <ListMusic size={18} /> Tracks
+              </button>
+            </div>
+            {error && <p className="av-mobile-error" role="status">{error}</p>}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* PERSISTENT PLAYER */}
       {hasTracks && activeTrack && (
