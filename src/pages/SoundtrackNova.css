@@ -396,13 +396,17 @@
 /* Standard mobile — balanced orb sizing */
 @media (max-width: 600px) {
   .av-nova-ui .av-world-stage {
-    height: 300px;
-    margin: 0 0 4px;
+    height: clamp(235px, 35dvh, 320px);
+    min-height: 0;
+    margin: 8px 0 12px;
+    overflow: visible;
   }
 
   .av-nova-ui .av-living-orb {
-    width: min(70vw, 280px);
+    width: min(66vw, 30dvh, 280px);
+    max-width: 100%;
     aspect-ratio: 1;
+    margin: 0 auto;
   }
 }
 
