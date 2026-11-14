@@ -200,7 +200,7 @@ export default function SoundtrackPage() {
       const source = context.createMediaElementSource(audio);
       const analyser = context.createAnalyser();
       analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.82;
+      analyser.smoothingTimeConstant = 0.55;
       source.connect(analyser);
       analyser.connect(context.destination);
       audioContextRef.current = context;
