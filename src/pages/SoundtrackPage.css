@@ -808,3 +808,105 @@
     transition: none;
   }
 }
+
+/* ALGOVERSE — Mobile Soundtrack Player Fix */
+
+@media (max-width: 600px) {
+  .st-page {
+    --algoverse-mobile-nav-height: 76px;
+  }
+
+  .st-page.st-has-player {
+    padding-bottom: calc(
+      180px + var(--algoverse-mobile-nav-height)
+    );
+  }
+
+  /* Position the player above the bottom navigation */
+  .st-player-shell {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(
+      var(--algoverse-mobile-nav-height) +
+      env(safe-area-inset-bottom, 0px) +
+      8px
+    );
+
+    transform: none;
+    width: auto;
+    max-width: none;
+    z-index: 100;
+
+    padding: 12px;
+    border-radius: 16px;
+
+    background: rgba(24, 21, 37, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  }
+
+  .st-player {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 10px 8px;
+  }
+
+  .st-player-track {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .st-player-track img {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 8px;
+  }
+
+  .st-player-track strong {
+    font-size: 13px;
+  }
+
+  .st-player-track span {
+    font-size: 11px;
+  }
+
+  .st-player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .st-player-controls button {
+    width: 32px;
+    height: 36px;
+    padding: 4px;
+  }
+
+  .st-player-controls .st-play-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .st-player-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .st-player-progress input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .st-player-volume {
+    display: none;
+  }
+}
