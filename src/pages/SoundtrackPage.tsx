@@ -89,13 +89,11 @@ export default function SoundtrackPage() {
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState("");
-
-const [mobileExpanded, setMobileExpanded] = useState(() => {
-  if (typeof window === "undefined") return false;
-
-  return window.matchMedia("(max-width: 600px)").matches;
-});
-
+  // Mobile gets a dedicated media library on first entry, not a hidden tracklist.
+  const [mobileExpanded, setMobileExpanded] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches
+  );
+  const [mobileView, setMobileView] = useState<"library" | "player">("library");
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const activeTrack = TRACKS[activeIndex];
@@ -163,8 +161,9 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
     };
   }, [mobileExpanded]);
 
-  function openMobilePlayer() {
+  function openMobilePlayer(view: "library" | "player" = "player") {
     if (!window.matchMedia("(max-width: 600px)").matches) return;
+    setMobileView(view);
     if (!mobileExpanded) {
       previouslyFocusedRef.current =
         document.activeElement instanceof HTMLElement
@@ -173,6 +172,16 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
       setMobileExpanded(true);
     }
   }
+
+  // Prevent a resized desktop from remaining scroll-locked by a hidden mobile modal.
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 600px)");
+    const onChange = () => {
+      if (!media.matches) setMobileExpanded(false);
+    };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
 
   // Connect the existing audio element only once. This is deliberately called
   // during a click, rather than an effect, for mobile AudioContext policies.
@@ -242,8 +251,9 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
 
   function selectTrack(index: number) {
     if (!TRACKS[index]) return;
-    openMobilePlayer();
-    playTrack(index);
+    openMobilePlayer("player");
+    // Selecting the already-playing song opens its player without pausing it.
+    if (index !== activeIndex || !playing) playTrack(index);
   }
 
   function nextTrack() {
@@ -541,12 +551,12 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
       />
 
       {/* Mobile mini-player replaces the desktop toolbar below 600px. */}
-      {hasTracks && activeTrack && createPortal(
+      {hasTracks && activeTrack && !mobileExpanded && createPortal(
         <div className="av-mini-player" aria-label="Mini music player">
           <button
             className="av-mini-open"
             type="button"
-            onClick={openMobilePlayer}
+            onClick={() => openMobilePlayer("player")}
             aria-label={`Open full player for ${activeTrack.title}`}
           >
             <span className="av-mini-art">
@@ -573,7 +583,8 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
         document.body
       )}
 
-      {/* Mobile-only immersive player. The audio element stays mounted above. */}
+      {/* Dedicated mobile music experience: visible library + immersive now-playing.
+          One audio element remains mounted outside this portal. */}
       {mobileExpanded && hasTracks && activeTrack && createPortal(
         <div
           className="av-mobile-player"
@@ -592,73 +603,128 @@ const [mobileExpanded, setMobileExpanded] = useState(() => {
               type="button"
               className="av-modal-close"
               onClick={() => setMobileExpanded(false)}
-              aria-label="Minimize the player"
+              aria-label="Minimize the music player"
             >
               <ChevronDown size={24} />
             </button>
           </header>
 
-          <div className="av-mobile-body">
-            <div className="av-world-stage">
-              <LivingOrb
-                analyserRef={analyserRef}
-                playing={playing}
-                mood={activeIndex}
-                reduceMotion={reduceMotion}
-                onToggle={() => void togglePlay()}
-              />
-            </div>
+          <nav className="av-mobile-tabs" aria-label="Music views">
+            <button
+              type="button"
+              className={mobileView === "library" ? "is-active" : ""}
+              aria-current={mobileView === "library" ? "page" : undefined}
+              onClick={() => setMobileView("library")}
+            >
+              <ListMusic size={17} /> Library <span>{TRACKS.length.toString().padStart(2, "0")}</span>
+            </button>
+            <button
+              type="button"
+              className={mobileView === "player" ? "is-active" : ""}
+              aria-current={mobileView === "player" ? "page" : undefined}
+              onClick={() => setMobileView("player")}
+            >
+              <Disc3 size={17} /> Now playing
+            </button>
+          </nav>
 
-            <div className="av-now-playing">
-              <span>NOW IN ROTATION · {String(activeIndex + 1).padStart(2, "0")}</span>
-              <h2>{activeTrack.title}</h2>
-              <p>{activeTrack.artist}</p>
-              {activeTrack.episode && <small>{activeTrack.episode}</small>}
-            </div>
-
-            <div className="av-progress">
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                step="0.1"
-                value={Math.min(current, duration || 0)}
-                onChange={(event) => seek(Number(event.target.value))}
-                disabled={duration <= 0}
-                aria-label="Seek within track"
-                style={{
-                  background: `linear-gradient(to right, #e9d7f0 ${duration > 0 ? (current / duration) * 100 : 0}%, rgba(255,255,255,.18) 0)`,
-                }}
-              />
-              <div>
-                <span>{formatTime(current)}</span>
-                <span>{formatTime(duration)}</span>
+          {mobileView === "library" ? (
+            <section className="av-mobile-library" aria-label="Soundtrack tracks">
+              <div className="av-library-intro">
+                <span>THE ALGORITHM · ORIGINAL SOUNDTRACK</span>
+                <h2>Find your<br /><em>frequency.</em></h2>
+                <p>Three original tracks. One universe. Tap a song to bring its world to life.</p>
               </div>
-            </div>
-
-            <nav className="av-track-navigation" aria-label="Track controls">
-              <button type="button" onClick={previousTrack} aria-label="Previous track or restart">
-                <SkipBack size={25} fill="currentColor" />
-              </button>
-              <span className="av-track-count">
-                {activeIndex + 1} <span>/</span> {TRACKS.length}
-              </span>
-              <button type="button" onClick={nextTrack} aria-label="Next track">
-                <SkipForward size={25} fill="currentColor" />
-              </button>
-            </nav>
-            <div className="av-mobile-footer">
-              <span><AudioLines size={15} /> THE ALGORITHM · ORIGINAL SOUNDTRACK</span>
+              <div className="av-library-list">
+                {TRACKS.map((track, index) => {
+                  const selected = activeIndex === index;
+                  return (
+                    <button
+                      type="button"
+                      className={`av-library-track ${selected ? "is-selected" : ""}`}
+                      key={track.id}
+                      onClick={() => selectTrack(index)}
+                      aria-label={`Play ${track.title} by ${track.artist}`}
+                    >
+                      <span className="av-library-number">{String(index + 1).padStart(2, "0")}</span>
+                      <img src={asset(track.artwork || COVER)} alt="" />
+                      <span className="av-library-track-copy">
+                        <strong>{track.title}</strong>
+                        <small>{track.episode || "Original soundtrack"}</small>
+                      </span>
+                      <span className="av-library-action" aria-hidden="true">
+                        {selected && playing ? <AudioLines size={19} /> : <Play size={19} fill="currentColor" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 type="button"
-                onClick={() => setMobileExpanded(false)}
-                aria-label="Return to soundtrack track list"
+                className="av-library-current"
+                onClick={() => setMobileView("player")}
+                aria-label={`Open now playing: ${activeTrack.title}`}
               >
-                <ListMusic size={18} /> Tracks
+                <span className="av-library-current-icon"><Disc3 size={20} /></span>
+                <span className="av-library-current-title"><small>NOW IN ROTATION</small><strong>{activeTrack.title}</strong></span>
+                <span className="av-library-current-open">View player <span aria-hidden="true">↗</span></span>
               </button>
-            </div>
-            {error && <p className="av-mobile-error" role="status">{error}</p>}
-          </div>
+            </section>
+          ) : (
+            <section className="av-mobile-body" aria-label="Now playing">
+              <div className="av-world-stage">
+                <LivingOrb
+                  analyserRef={analyserRef}
+                  playing={playing}
+                  mood={activeIndex}
+                  reduceMotion={reduceMotion}
+                  onToggle={() => void togglePlay()}
+                />
+              </div>
+              <div className="av-now-playing">
+                <span>NOW IN ROTATION · {String(activeIndex + 1).padStart(2, "0")}</span>
+                <h2>{activeTrack.title}</h2>
+                <p>{activeTrack.artist}</p>
+                {activeTrack.episode && <small>{activeTrack.episode}</small>}
+              </div>
+              <div className="av-progress">
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  step="0.1"
+                  value={Math.min(current, duration || 0)}
+                  onChange={(event) => seek(Number(event.target.value))}
+                  disabled={duration <= 0}
+                  aria-label="Seek within track"
+                  style={{
+                    background: `linear-gradient(to right, #e9d7f0 ${duration > 0 ? (current / duration) * 100 : 0}%, rgba(255,255,255,.18) 0)`,
+                  }}
+                />
+                <div><span>{formatTime(current)}</span><span>{formatTime(duration)}</span></div>
+              </div>
+              <nav className="av-track-navigation" aria-label="Track controls">
+                <button type="button" onClick={previousTrack} aria-label="Previous track or restart">
+                  <SkipBack size={25} fill="currentColor" />
+                </button>
+                <span className="av-track-count">{activeIndex + 1} <span>/</span> {TRACKS.length}</span>
+                <button type="button" onClick={nextTrack} aria-label="Next track">
+                  <SkipForward size={25} fill="currentColor" />
+                </button>
+              </nav>
+              <div className="av-mobile-footer">
+                <span><AudioLines size={15} /> THE ALGORITHM · ORIGINAL SOUNDTRACK</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileView("library")}
+                  aria-label="Show all three tracks"
+                >
+                  <ListMusic size={18} /> All {TRACKS.length} tracks
+                </button>
+              </div>
+            </section>
+          )}
+          {error && <p className="av-mobile-error" role="status">{error}</p>}
         </div>,
         document.body
       )}

@@ -115,3 +115,228 @@
   .av-mini-progress { transition: none; }
   .av-living-orb { filter: none; }
 }
+
+/* v2 — mobile-first music library and immersive player share one audio engine. */
+@media (max-width: 600px) {
+  .av-mobile-player {
+    overflow-x: hidden;
+  }
+
+  .av-mobile-tabs {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: min(100%, 460px);
+    margin: 20px auto 8px;
+    padding: 4px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    background: rgba(255,255,255,.035);
+  }
+  .av-mobile-tabs button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: #9f9cae;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .av-mobile-tabs button.is-active {
+    color: #f7f5fb;
+    background: rgba(255,255,255,.105);
+    box-shadow: 0 1px 8px rgba(0,0,0,.12);
+  }
+  .av-mobile-tabs button span {
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: #c3b8d5;
+  }
+
+  .av-mobile-library {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: min(100%, 460px);
+    min-height: 0;
+    margin: 0 auto;
+    padding: 24px 0 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .av-library-intro > span {
+    color: #e8ad8d;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: .15em;
+  }
+  .av-library-intro h2 {
+    margin: 12px 0 14px;
+    font-size: clamp(38px, 10vw, 54px);
+    font-weight: 660;
+    line-height: 1.05;
+    letter-spacing: -.055em;
+    color: #f7f4fb;
+  }
+  .av-library-intro h2 em {
+    font-style: normal;
+    background: linear-gradient(105deg, #f8c7ac, #e4a3c8, #aaa2f1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .av-library-intro p {
+    max-width: 320px;
+    margin: 0;
+    color: #aaa7b9;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .av-library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .av-library-track {
+    display: grid;
+    grid-template-columns: 23px 56px minmax(0, 1fr) 35px;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 77px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 16px;
+    background: rgba(255,255,255,.035);
+    color: #f7f5fa;
+    cursor: pointer;
+    text-align: left;
+  }
+  .av-library-track.is-selected {
+    border-color: rgba(242,169,142,.38);
+    background: linear-gradient(110deg, rgba(243,154,110,.12), rgba(160,136,216,.06));
+  }
+  .av-library-number {
+    font-size: 11px;
+    color: #8e8b9d;
+    font-variant-numeric: tabular-nums;
+  }
+  .av-library-track img {
+    display: block;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+  }
+  .av-library-track-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  .av-library-track-copy strong {
+    font-size: 15px;
+    letter-spacing: -.01em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .av-library-track-copy small {
+    font-size: 11px;
+    color: #a6a0b4;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .av-library-action {
+    display: grid;
+    place-items: center;
+    color: #eac4b4;
+  }
+  .av-library-current {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 66px;
+    margin-top: auto;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 16px;
+    background: rgba(132, 111, 179, .09);
+    color: #f3f0f8;
+    text-align: left;
+    cursor: pointer;
+  }
+  .av-library-current-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: rgba(231,179,166,.12);
+    color: #efc0ac;
+  }
+  .av-library-current-title {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .av-library-current-title small {
+    color: #aaa4ba;
+    font-size: 9px;
+    letter-spacing: .11em;
+  }
+  .av-library-current-title strong {
+    font-size: 14px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .av-library-current-open {
+    font-size: 11px;
+    color: #e4bdaf;
+    white-space: nowrap;
+  }
+  .av-library-current-open span { font-size: 17px; margin-left: 2px; }
+
+  .av-mobile-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .av-world-stage {
+    flex: 0 0 auto;
+    height: min(41dvh, 355px);
+    min-height: 220px;
+    max-height: none;
+  }
+  .av-living-orb {
+    width: min(73vw, 35dvh, 315px);
+    outline: none;
+  }
+  .av-living-orb:focus-visible {
+    outline: 2px solid #e6d1f0;
+    outline-offset: 5px;
+    border-radius: 50%;
+  }
+  .av-mobile-footer { margin-bottom: 10px; }
+  .av-mobile-footer button {
+    min-height: 44px;
+    padding: 0 3px;
+    font-weight: 650;
+  }
+}
